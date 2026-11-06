@@ -1,0 +1,7 @@
+{
+  "name": "Mi mod de ejemplo",
+  "author": "Yo",
+  "version": "1.0",
+  "target": "patch",
+  "files": ["mi_mod.cpk"]
+}
