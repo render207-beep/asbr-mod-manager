@@ -11,6 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Localizar proyecto
+        run: |
+          DIR=$(dirname "$(find . -name CMakeLists.txt | head -1)")
+          echo "Proyecto en: $DIR"
+          echo "PROJ=$DIR" >> $GITHUB_ENV
+
       - name: Instalar dependencias
         run: |
           apt-get update
@@ -18,9 +24,11 @@ jobs:
           dkp-pacman -S --needed --noconfirm switch-cmake switch-curl switch-glfw switch-mesa switch-glm switch-libwebp switch-zlib switch-mbedtls
 
       - name: Descargar Borealis
+        working-directory: ${{ env.PROJ }}
         run: git clone --depth 1 --recursive https://github.com/xfangfang/borealis library/borealis
 
       - name: Compilar
+        working-directory: ${{ env.PROJ }}
         run: |
           export DEVKITPRO=/opt/devkitpro
           cmake -B build -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/Switch.cmake
@@ -29,4 +37,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: asbr_mod_manager
-          path: build/*.nro
+          path: ${{ env.PROJ }}/build/*.nro
