@@ -1,20 +1,42 @@
-cmake_minimum_required(VERSION 3.15)
-project(asbr_mod_manager)
-set(CMAKE_CXX_STANDARD 17)
+cmake_minimum_required(VERSION 3.13)
 
-# Borealis como submodulo: git submodule add https://github.com/xfangfang/borealis library/borealis
+# Solo compilamos para Switch
 set(PLATFORM_SWITCH ON CACHE BOOL "" FORCE)
-add_subdirectory(library/borealis)
 
-add_executable(${PROJECT_NAME}
-    src/main.cpp src/main_activity.cpp src/mod_manager.cpp)
-target_include_directories(${PROJECT_NAME} PRIVATE src)
-target_link_libraries(${PROJECT_NAME} PRIVATE borealis)
+set(BOREALIS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/library/borealis)
+set(BOREALIS_LIBRARY ${BOREALIS_DIR}/library)
 
-# Los XML de la UI deben quedar en romfs
-file(COPY resources/ DESTINATION ${CMAKE_BINARY_DIR}/romfs/resources)
-file(COPY library/borealis/resources/ DESTINATION ${CMAKE_BINARY_DIR}/romfs/resources/borealis)
+include(${BOREALIS_LIBRARY}/cmake/commonOption.cmake)
+include(${BOREALIS_LIBRARY}/cmake/toolchain.cmake)
 
-# Genera el .nro (macros de devkitPro Switch.cmake)
-nx_generate_nacp(${PROJECT_NAME}.nacp NAME "ASBR Mod Manager" AUTHOR "TuNombre" VERSION "0.1.0")
-nx_create_nro(${PROJECT_NAME} NACP ${PROJECT_NAME}.nacp ROMFS ${CMAKE_BINARY_DIR}/romfs)
+project(asbr_mod_manager)
+set(PROJECT_AUTHOR "asbr")
+set(APP_VERSION "0.1.0")
+set(PROJECT_RESOURCES ${CMAKE_CURRENT_SOURCE_DIR}/resources)
+set(BRLS_RESOURCES_DIR ".")
+
+file(GLOB_RECURSE MAIN_SRC src/*.cpp)
+list(APPEND MAIN_SRC ${BOREALIS_LIBRARY}/lib/platforms/switch/switch_wrapper.c)
+
+# Solo la libreria de Borealis (no su demo)
+add_subdirectory(${BOREALIS_LIBRARY})
+
+program_target(${PROJECT_NAME} "${MAIN_SRC}")
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
+
+# Recursos: primero los de Borealis (fuentes, estilos), luego los nuestros encima
+file(COPY ${BOREALIS_DIR}/resources/ DESTINATION ${CMAKE_BINARY_DIR}/resources)
+
+add_custom_target(${PROJECT_NAME}.nro
+    DEPENDS ${PROJECT_NAME}
+    COMMAND ${NX_NACPTOOL_EXE} --create ${PROJECT_NAME} ${PROJECT_AUTHOR} ${APP_VERSION} ${PROJECT_NAME}.nacp
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_RESOURCES} ${CMAKE_BINARY_DIR}/resources
+    COMMAND ${NX_ELF2NRO_EXE} ${PROJECT_NAME}.elf ${PROJECT_NAME}.nro
+            --nacp=${PROJECT_NAME}.nacp --romfsdir=${CMAKE_BINARY_DIR}/resources
+    ALL
+)
+
+target_include_directories(${PROJECT_NAME} PRIVATE src ${APP_PLATFORM_INCLUDE})
+target_compile_options(${PROJECT_NAME} PRIVATE -ffunction-sections -fdata-sections ${APP_PLATFORM_OPTION})
+target_link_libraries(${PROJECT_NAME} PRIVATE borealis ${APP_PLATFORM_LIB})
+target_link_options(${PROJECT_NAME} PRIVATE ${APP_PLATFORM_LINK_OPTION})
