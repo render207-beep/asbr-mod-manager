@@ -33,19 +33,29 @@ jobs:
           export DEVKITPRO=/opt/devkitpro
           cmake -B build -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/Switch.cmake
           cmake --build build
-          echo "=== Contenido de build ==="
-          ls -la build
+
+      - name: Crear NRO
+        working-directory: ${{ env.PROJ }}
+        run: |
+          export DEVKITPRO=/opt/devkitpro
+          export PATH=$PATH:$DEVKITPRO/tools/bin
+          ELF=$(find build -name asbr_mod_manager.elf | head -1)
+          echo "ELF: $ELF"
+          rm -rf romfs && mkdir romfs
+          cp -r library/borealis/resources/. romfs/
+          cp -r resources/. romfs/
+          nacptool --create "ASBR Mod Manager" "asbr" "0.1.0" app.nacp
+          elf2nro "$ELF" asbr_mod_manager.nro --nacp=app.nacp --romfsdir=romfs
+          ls -la asbr_mod_manager.nro
 
       - name: Reunir resultado
         run: |
           mkdir -p out
-          find . -name "*.nro" -not -path "./out/*" -exec cp {} out/ \;
-          find . -name "*.elf" -not -path "./out/*" -exec cp {} out/ \;
-          echo "=== Archivos encontrados ==="
+          cp ${{ env.PROJ }}/asbr_mod_manager.nro out/
           ls -la out
 
       - uses: actions/upload-artifact@v4
         with:
           name: asbr_mod_manager
-          path: out/*
+          path: out/asbr_mod_manager.nro
           if-no-files-found: error
